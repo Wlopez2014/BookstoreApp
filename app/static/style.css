@@ -1,0 +1,186 @@
+:root{
+  --bg:#0b0d12;
+  --card:#121826;
+  --text:#e7eefc;
+  --muted:#a9b4cc;
+  --border:#23304a;
+  --accent:#6ea8fe;
+  --accent2:#8b5cf6;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.container{
+  max-width:1400px;
+  margin:0 auto;
+  padding:18px;
+}
+
+@media (min-width:1600px){
+  .container{
+    max-width:1600px;
+  }
+}
+
+h1{margin:0 0 6px 0;font-size:28px}
+h2{margin:0 0 12px 0;font-size:18px}
+
+p{margin:8px 0}
+
+.muted{color:var(--muted)}
+.small{font-size:12px}
+
+.badge{
+  font-size:12px;
+  padding:4px 10px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  color:var(--muted);
+  vertical-align:middle;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr)); 
+}
+
+@media (max-width:980px){
+  .grid{grid-template-columns:1fr}
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+
+.row{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  gap:10px;
+  align-items:center;
+  margin:10px 0;
+}
+
+.row.actions{
+  grid-template-columns:1fr 1fr 1fr;
+}
+
+label{
+  color:var(--muted);
+  font-size:13px;
+}
+
+input,textarea{
+  width:100%;
+  background:#0f1420;
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:10px;
+  padding:10px;
+  font-size:14px;
+}
+
+textarea{resize:vertical}
+
+button{
+  background:var(--accent);
+  border:none;
+  color:#081021;
+  border-radius:10px;
+  padding:10px 12px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+button.secondary{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text);
+}
+
+button:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+.status{margin-top:10px}
+
+.pill{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px;
+  background:#0f1420;
+}
+
+.mono{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+}
+
+.tableWrap{
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:12px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td{
+  padding:10px;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  font-size:13px;
+}
+
+th{
+  position:sticky;
+  top:0;
+  background:#0f1420;
+  color:var(--muted);
+  z-index:1;
+}
+
+.pre{
+  background:#0f1420;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px;
+
+  height:260px;        
+  max-height:260px;
+
+  overflow-y:auto;    
+  overflow-x:auto;
+
+  white-space:pre-wrap;
+}
+
+.hidden{display:none !important}
+
+.demoRow{
+  grid-template-columns:1fr !important;
+}
+
+.demo-box{
+  width:100%;
+  max-width:none;
+}
+
+.demo-grid{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  gap:6px 12px;
+  font-family:monospace;
+}

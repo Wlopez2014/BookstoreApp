@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bookstore Management - Sprint 1</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="container">
+    <h1>Bookstore Management System <span class="badge">Sprint 1</span></h1>
+    <p class="muted">
+      Run the EXE, then use this page to log in and test Sprint 1 functionality.
+    </p>
+  </header>
+
+  <main class="container grid">
+    <section class="card" id="authCard">
+      <h2>Login</h2>
+      <div class="row">
+        <label>Username</label>
+        <input id="username" placeholder="admin / staff / customer" />
+      </div>
+      <div class="row">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="Admin123! / Staff123! / Customer123!" />
+      </div>
+      <div class="row actions">
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn" class="secondary" disabled>Logout</button>
+      </div>
+      <div class="row demoRow">
+        <div class="pill">
+          <div class="demo-box">
+            <h4>Demo Users | Passwords</h4>
+            <div class="demo-grid">
+              <div><strong>admin</strong></div><div>Admin123!</div>
+              <div><strong>staff</strong></div><div>Staff123!</div>
+              <div><strong>customer</strong></div><div>Customer123!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="authStatus" class="status muted">Not logged in</div>
+    </section>
+
+    <section class="card">
+      <h2>Catalog</h2>
+      <div class="row actions">
+        <button id="refreshBooksBtn">Refresh Books</button>
+        <input id="searchQ" placeholder="Search title/author/isbn…" />
+        <button id="searchBtn" class="secondary">Search</button>
+      </div>
+      <div class="tableWrap">
+        <table id="booksTable">
+          <thead>
+            <tr>
+              <th>ID</th><th>ISBN</th><th>Title</th><th>Author</th><th>Price</th><th>Qty</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted small">Tip: Use book IDs from the table for updates, sales, and orders.</p>
+    </section>
+
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Staff/Admin: Add Book</h2>
+      <div class="row"><label>ISBN</label><input id="add_isbn" placeholder="optional" /></div>
+      <div class="row"><label>Title</label><input id="add_title" /></div>
+      <div class="row"><label>Author</label><input id="add_author" /></div>
+      <div class="row"><label>Price</label><input id="add_price" placeholder="12.99" /></div>
+      <div class="row"><label>Quantity</label><input id="add_qty" placeholder="10" /></div>
+      <div class="row actions">
+        <button id="addBookBtn">Add</button>
+      </div>
+    </section>
+
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Staff/Admin: Update Quantity</h2>
+      <div class="row"><label>Book ID</label><input id="qty_book_id" placeholder="1" /></div>
+      <div class="row"><label>New Quantity</label><input id="qty_new" placeholder="25" /></div>
+      <div class="row actions">
+        <button id="updateQtyBtn">Update Qty</button>
+      </div>
+    </section>
+
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Staff/Admin: Remove Book</h2>
+      <p class="muted small">Deletes a book from the catalog. Use with caution.</p>
+      <div class="row"><label>Book ID</label><input id="del_book_id" placeholder="1" /></div>
+      <div class="row actions">
+        <button id="deleteBookBtn" class="secondary">Remove Book</button>
+      </div>
+    </section>
+    
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Staff/Admin: Update Book Details</h2>
+      <p class="muted small">PATCH fields are optional — fill only what you want to change.</p>
+      <div class="row"><label>Book ID</label><input id="edit_book_id" placeholder="1" /></div>
+      <div class="row"><label>Title</label><input id="edit_title" placeholder="leave blank to keep" /></div>
+      <div class="row"><label>Author</label><input id="edit_author" placeholder="leave blank to keep" /></div>
+      <div class="row"><label>ISBN</label><input id="edit_isbn" placeholder="leave blank to keep" /></div>
+      <div class="row"><label>Price</label><input id="edit_price" placeholder="leave blank to keep" /></div>
+      <div class="row actions">
+        <button id="updateDetailsBtn">Update Details</button>
+      </div>
+    </section>
+
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Staff/Admin: Record Sale (POS)</h2>
+      <div class="row"><label>Book ID</label><input id="sale_book_id" placeholder="1" /></div>
+      <div class="row"><label>Quantity</label><input id="sale_qty" placeholder="1" /></div>
+      <div class="row actions">
+        <button id="recordSaleBtn">Record Sale</button>
+      </div>
+      <p class="muted small">This reduces inventory and creates a Sale row used by the Sales Report.</p>
+    </section>
+
+    <section class="card roleBlock" data-role="customer">
+      <h2>Customer: Checkout (Create Order)</h2>
+      <p class="muted small">Enter items as JSON: <span class="mono">[{ "book_id": 1, "quantity": 2 }]</span></p>
+      <div class="row"><label>Items JSON</label><textarea id="order_items" rows="4">[{ "book_id": 1, "quantity": 1 }]</textarea></div>
+      <div class="row actions">
+        <button id="placeOrderBtn">Place Order</button>
+      </div>
+      <p class="muted small">Note: Sprint 1 demo uses a simplified checkout (inventory updates + order status).</p>
+    </section>
+
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Reports</h2>
+      <div class="row actions">
+        <button id="salesReportBtn">Sales Report</button>
+        <button id="lowStockBtn" class="secondary">Low Stock</button>
+        <input id="lowStockThreshold" placeholder="threshold (default 5)" />
+      </div>
+      <pre id="reportOut" class="pre"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Console</h2>
+      <pre id="console" class="pre"></pre>
+      <div class="row actions">
+        <button id="clearConsoleBtn" class="secondary">Clear</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container muted small">
+    <div>Tip: If something fails, scroll the Console for the API response.</div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
