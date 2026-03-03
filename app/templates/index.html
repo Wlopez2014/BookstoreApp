@@ -15,6 +15,7 @@
   </header>
 
   <main class="container grid">
+    <!-- Login -->
     <section class="card" id="authCard">
       <h2>Login</h2>
       <div class="row">
@@ -29,6 +30,7 @@
         <button id="loginBtn">Login</button>
         <button id="logoutBtn" class="secondary" disabled>Logout</button>
       </div>
+
       <div class="row demoRow">
         <div class="pill">
           <div class="demo-box">
@@ -41,9 +43,11 @@
           </div>
         </div>
       </div>
+
       <div id="authStatus" class="status muted">Not logged in</div>
     </section>
 
+    <!-- Catalog -->
     <section class="card">
       <h2>Catalog</h2>
       <div class="row actions">
@@ -51,6 +55,7 @@
         <input id="searchQ" placeholder="Search title/author/isbn…" />
         <button id="searchBtn" class="secondary">Search</button>
       </div>
+
       <div class="tableWrap">
         <table id="booksTable">
           <thead>
@@ -61,9 +66,11 @@
           <tbody></tbody>
         </table>
       </div>
+
       <p class="muted small">Tip: Use book IDs from the table for updates, sales, and orders.</p>
     </section>
 
+    <!-- Add Book -->
     <section class="card roleBlock" data-role="admin,staff">
       <h2>Staff/Admin: Add Book</h2>
       <div class="row"><label>ISBN</label><input id="add_isbn" placeholder="optional" /></div>
@@ -76,6 +83,7 @@
       </div>
     </section>
 
+    <!-- Update Quantity -->
     <section class="card roleBlock" data-role="admin,staff">
       <h2>Staff/Admin: Update Quantity</h2>
       <div class="row"><label>Book ID</label><input id="qty_book_id" placeholder="1" /></div>
@@ -85,6 +93,7 @@
       </div>
     </section>
 
+    <!-- Remove Book -->
     <section class="card roleBlock" data-role="admin,staff">
       <h2>Staff/Admin: Remove Book</h2>
       <p class="muted small">Deletes a book from the catalog. Use with caution.</p>
@@ -93,7 +102,8 @@
         <button id="deleteBookBtn" class="secondary">Remove Book</button>
       </div>
     </section>
-    
+
+    <!-- Update Book Details -->
     <section class="card roleBlock" data-role="admin,staff">
       <h2>Staff/Admin: Update Book Details</h2>
       <p class="muted small">PATCH fields are optional — fill only what you want to change.</p>
@@ -107,6 +117,7 @@
       </div>
     </section>
 
+    <!-- Record Sale -->
     <section class="card roleBlock" data-role="admin,staff">
       <h2>Staff/Admin: Record Sale (POS)</h2>
       <div class="row"><label>Book ID</label><input id="sale_book_id" placeholder="1" /></div>
@@ -117,31 +128,93 @@
       <p class="muted small">This reduces inventory and creates a Sale row used by the Sales Report.</p>
     </section>
 
+    <!-- Customer Checkout -->
     <section class="card roleBlock" data-role="customer">
       <h2>Customer: Checkout (Create Order)</h2>
-      <p class="muted small">Enter items as JSON: <span class="mono">[{ "book_id": 1, "quantity": 2 }]</span></p>
-      <div class="row"><label>Items JSON</label><textarea id="order_items" rows="4">[{ "book_id": 1, "quantity": 1 }]</textarea></div>
+      <p class="muted small">
+        Enter items as JSON: <span class="mono">[{ "book_id": 1, "quantity": 2 }]</span>
+      </p>
+      <div class="row">
+        <label>Items JSON</label>
+        <textarea id="order_items" rows="4">[{ "book_id": 1, "quantity": 1 }]</textarea>
+      </div>
       <div class="row actions">
         <button id="placeOrderBtn">Place Order</button>
       </div>
       <p class="muted small">Note: Sprint 1 demo uses a simplified checkout (inventory updates + order status).</p>
     </section>
 
+    <!-- Reports (Sales + Low Stock + Financial) -->
     <section class="card roleBlock" data-role="admin,staff">
       <h2>Reports</h2>
+
       <div class="row actions">
         <button id="salesReportBtn">Sales Report</button>
         <button id="lowStockBtn" class="secondary">Low Stock</button>
         <input id="lowStockThreshold" placeholder="threshold (default 5)" />
       </div>
+
+      <div class="row actions actions4">
+        <input id="fin_start" type="date" />
+        <input id="fin_end" type="date" />
+        <select id="fin_group_by">
+          <option value="day">day</option>
+          <option value="week">week</option>
+          <option value="month">month</option>
+        </select>
+        <button id="financialReportBtn" class="secondary">Financial Report</button>
+      </div>
+
+      <div class="row actions actions4">
+        <button id="fin_today" class="secondary">Today</button>
+        <button id="fin_last7" class="secondary">Last 7 days</button>
+        <button id="fin_month" class="secondary">This month</button>
+        <button id="fin_clear" class="secondary">Clear dates</button>
+      </div>
       <pre id="reportOut" class="pre"></pre>
     </section>
 
+    <!-- Publisher Replenishment -->
+    <section class="card roleBlock" data-role="admin,staff">
+      <h2>Publisher Replenishment</h2>
+
+      <div class="row demoRow">
+        <div>
+          <label>PO Items (JSON)</label>
+          <textarea id="po_items" rows="4">[
+  { "book_id": 2, "quantity": 10 }
+]</textarea>
+        </div>
+      </div>
+
+      <div class="row actions">
+        <button id="createPOBtn">Create Publisher Order</button>
+        <button id="listPOBtn" class="secondary">List Publisher Orders</button>
+        <div></div>
+      </div>
+
+      <hr />
+
+      <div class="row">
+        <label>Purchase Order ID</label>
+        <input id="po_id" type="number" placeholder="Enter PO ID" />
+      </div>
+
+      <div class="row actions">
+        <button id="submitPOBtn" class="secondary">Submit Order</button>
+        <button id="receivePOBtn">Receive & Restock</button>
+        <div></div>
+      </div>
+    </section>
+
+    <!-- Console -->
     <section class="card">
       <h2>Console</h2>
       <pre id="console" class="pre"></pre>
       <div class="row actions">
         <button id="clearConsoleBtn" class="secondary">Clear</button>
+        <div></div>
+        <div></div>
       </div>
     </section>
   </main>

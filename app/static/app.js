@@ -3,9 +3,9 @@
   const consoleEl = $("console");
   const authStatus = $("authStatus");
 
-  let token = localStorage.getItem("token") || "";
-  let role = localStorage.getItem("role") || "";
-  let username = localStorage.getItem("username") || "";
+  let token = sessionStorage.getItem("token") || "";
+  let role = sessionStorage.getItem("role") || "";
+  let username = sessionStorage.getItem("username") || "";
 
   function log(msg, obj){
     const ts = new Date().toLocaleTimeString();
@@ -102,9 +102,9 @@
       role = out.role;
       username = out.username;
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("role", role);
-      localStorage.setItem("username", username);
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("role", role);
+      sessionStorage.setItem("username", username);
 
       log("✅ Logged in", out);
       setAuthUI();
@@ -116,9 +116,9 @@
 
   $("logoutBtn").addEventListener("click", ()=>{
     token = ""; role = ""; username = "";
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("username");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
+    sessionStorage.removeItem("username");
     log("Logged out");
     setAuthUI();
   });
@@ -254,6 +254,25 @@
     }
   });
 
+  $("financialReportBtn")?.addEventListener("click", async ()=>{
+    try{
+      const start = $("fin_start").value.trim();
+      const end = $("fin_end").value.trim();
+      const group_by = $("fin_group_by").value;
+
+      const params = new URLSearchParams();
+      if (start) params.set("start", start);
+      if (end) params.set("end", end);
+      if (group_by) params.set("group_by", group_by);
+
+      const out = await api(`/api/reports/financial?${params.toString()}`, { method:"GET" });
+      $("reportOut").textContent = JSON.stringify(out, null, 2);
+      log("Financial report loaded");
+    } catch (e){
+      log("❌ Financial report failed", e);
+    }
+  });
+  
   $("lowStockBtn").addEventListener("click", async ()=>{
     try{
       const th = $("lowStockThreshold").value.trim();
@@ -266,7 +285,102 @@
     }
   });
 
-  // boot
-  setAuthUI();
-  refreshBooks();
+  function fmtDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+$("fin_today")?.addEventListener("click", ()=>{
+  const t = new Date();
+  $("fin_start").value = fmtDate(t);
+  $("fin_end").value = fmtDate(t);
+  log("📅 Set dates to Today");
+});
+
+$("fin_last7")?.addEventListener("click", ()=>{
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 6);
+  $("fin_start").value = fmtDate(start);
+  $("fin_end").value = fmtDate(end);
+  log("📅 Set dates to Last 7 days");
+});
+
+$("fin_month")?.addEventListener("click", ()=>{
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  $("fin_start").value = fmtDate(start);
+  $("fin_end").value = fmtDate(end);
+  log("📅 Set dates to This month");
+});
+
+$("fin_clear")?.addEventListener("click", ()=>{
+  $("fin_start").value = "";
+  $("fin_end").value = "";
+  log("🧹 Cleared date filters");
+});
+
+// Publisher Orders
+$("createPOBtn")?.addEventListener("click", async ()=>{
+  try{
+    log("➡️ Create Publisher Order clicked");
+    const items = JSON.parse($("po_items").value);
+
+    const out = await api("/api/publisher-orders", {
+      method:"POST",
+      body: JSON.stringify({ items })
+    });
+
+    log("✅ Publisher Order created", out);
+  } catch (e){
+    log("❌ Create publisher order failed", e);
+  }
+});
+
+$("listPOBtn")?.addEventListener("click", async ()=>{
+  try{
+    log("➡️ List Publisher Orders clicked");
+    const out = await api("/api/publisher-orders", { method:"GET" });
+    $("reportOut").textContent = JSON.stringify(out, null, 2);
+    log("✅ Publisher Orders loaded", out);
+  } catch (e){
+    log("❌ List publisher orders failed", e);
+  }
+});
+
+$("submitPOBtn")?.addEventListener("click", async ()=>{
+  try{
+    log("➡️ Submit Order clicked");
+    const id = parseInt($("po_id").value, 10);
+    if (Number.isNaN(id)) { log("❌ Enter a valid PO ID."); return; }
+
+    const out = await api(`/api/publisher-orders/${id}/submit`, { method:"PATCH" });
+    log("✅ Purchase order submitted", out);
+  } catch (e){
+    log("❌ Submit purchase order failed", e);
+  }
+});
+
+$("receivePOBtn")?.addEventListener("click", async ()=>{
+  try{
+    log("➡️ Receive & Restock clicked");
+    const id = parseInt($("po_id").value, 10);
+    if (Number.isNaN(id)) { log("❌ Enter a valid PO ID."); return; }
+
+    const out = await api(`/api/publisher-orders/${id}/receive`, { method:"PATCH" });
+    log("✅ Purchase order received + inventory updated", out);
+    refreshBooks();
+  } catch (e){
+    log("❌ Receive purchase order failed", e);
+  }
+});
+
+
+// boot
+setAuthUI();
+refreshBooks();
+
 })();

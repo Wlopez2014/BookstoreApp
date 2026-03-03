@@ -184,3 +184,6 @@ th{
   gap:6px 12px;
   font-family:monospace;
 }
+.row.actions4{
+  grid-template-columns: 1fr 1fr 140px 1fr;
+}
