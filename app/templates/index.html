@@ -7,221 +7,359 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="container">
-    <h1>Bookstore Management System <span class="badge">Sprint 1</span></h1>
-    <p class="muted">
-      Run the EXE, then use this page to log in and test Sprint 1 functionality.
-    </p>
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand">
+        <div class="brand-title">
+          Bookstore Management System <span class="badge">Sprint 1</span>
+        </div>
+        <div class="brand-sub muted">
+          Run the EXE, then use this page to log in and test Sprint 1 functionality.
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div id="authStatus" class="status muted">Not logged in</div>
+      <button id="loginNavBtn" class="secondary smallBtn">Login</button>
+      <button id="logoutBtn" class="secondary smallBtn" disabled>Logout</button>
+    </div>
   </header>
 
-  <main class="container grid">
-    <!-- Login -->
-    <section class="card" id="authCard">
-      <h2>Login</h2>
-      <div class="row">
-        <label>Username</label>
-        <input id="username" placeholder="admin / staff / customer" />
-      </div>
-      <div class="row">
-        <label>Password</label>
-        <input id="password" type="password" placeholder="Admin123! / Staff123! / Customer123!" />
-      </div>
-      <div class="row actions">
-        <button id="loginBtn">Login</button>
-        <button id="logoutBtn" class="secondary" disabled>Logout</button>
-      </div>
+  <div class="appShell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <button class="navBtn" data-view="view-catalog" data-roles="admin,staff,customer">Catalog</button>
+        <button class="navBtn" data-view="view-inventory" data-roles="admin,staff">Inventory</button>
+        <button class="navBtn" data-view="view-sales" data-roles="admin,staff,customer">Sales / Checkout</button>
+        <button class="navBtn" data-view="view-reports" data-roles="admin,staff">Reports</button>
+        <button class="navBtn" data-view="view-publisher" data-roles="admin,staff">Publisher</button>
 
-      <div class="row demoRow">
-        <div class="pill">
-          <div class="demo-box">
-            <h4>Demo Users | Passwords</h4>
+        <div class="navDivider"></div>
+
+        <button class="navBtn" data-view="view-console" data-roles="admin,staff,customer">Console</button>
+      </nav>
+
+      <div class="sidebarHint muted small">
+        Tip: If something fails, open <strong>Console</strong> to see the API response.
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+
+      <!-- AUTH VIEW -->
+      <section id="view-auth" class="view">
+        <div class="card narrow">
+          <h2>Login</h2>
+
+          <div class="row">
+            <label>Username</label>
+            <input id="username" placeholder="admin / staff / customer" />
+          </div>
+
+          <div class="row">
+            <label>Password</label>
+            <input id="password" type="password" placeholder="Admin123! / Staff123! / Customer123!" />
+          </div>
+
+          <div class="row actions">
+            <button id="loginBtn">Login</button>
+            <div></div>
+            <div></div>
+          </div>
+
+          <!-- Inline status (Auth) -->
+          <div id="loginStatus" class="inlineStatus"></div>
+
+          <div class="pill demoPill">
+            <h4 class="demoTitle">Demo Users | Passwords</h4>
             <div class="demo-grid">
               <div><strong>admin</strong></div><div>Admin123!</div>
               <div><strong>staff</strong></div><div>Staff123!</div>
               <div><strong>customer</strong></div><div>Customer123!</div>
             </div>
           </div>
+
+          <p class="muted small authNote">
+            After you log in, use the sidebar to navigate.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div id="authStatus" class="status muted">Not logged in</div>
-    </section>
+      <!-- CATALOG VIEW -->
+      <section id="view-catalog" class="view hidden">
+        <div class="viewHeader">
+          <h2>Catalog</h2>
+          <div class="muted small">Search and browse available books.</div>
+        </div>
 
-    <!-- Catalog -->
-    <section class="card">
-      <h2>Catalog</h2>
-      <div class="row actions">
-        <button id="refreshBooksBtn">Refresh Books</button>
-        <input id="searchQ" placeholder="Search title/author/isbn…" />
-        <button id="searchBtn" class="secondary">Search</button>
-      </div>
+        <div class="card">
+          <div class="row actions">
+            <button id="refreshBooksBtn">Refresh Books</button>
+            <input id="searchQ" placeholder="Search title/author/isbn…" />
+            <button id="searchBtn" class="secondary">Search</button>
+          </div>
 
-      <div class="tableWrap">
-        <table id="booksTable">
-          <thead>
-            <tr>
-              <th>ID</th><th>ISBN</th><th>Title</th><th>Author</th><th>Price</th><th>Qty</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+          <!-- Inline status (Catalog) -->
+          <div id="catalogStatus" class="inlineStatus"></div>
 
-      <p class="muted small">Tip: Use book IDs from the table for updates, sales, and orders.</p>
-    </section>
+          <div class="tableWrap">
+            <table id="booksTable">
+              <thead>
+                <tr>
+                  <th>ID</th><th>ISBN</th><th>Title</th><th>Author</th><th>Price</th><th>Qty</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
 
-    <!-- Add Book -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Staff/Admin: Add Book</h2>
-      <div class="row"><label>ISBN</label><input id="add_isbn" placeholder="optional" /></div>
-      <div class="row"><label>Title</label><input id="add_title" /></div>
-      <div class="row"><label>Author</label><input id="add_author" /></div>
-      <div class="row"><label>Price</label><input id="add_price" placeholder="12.99" /></div>
-      <div class="row"><label>Quantity</label><input id="add_qty" placeholder="10" /></div>
-      <div class="row actions">
-        <button id="addBookBtn">Add</button>
-      </div>
-    </section>
+          <p class="muted small">Tip: Use book IDs from the table for updates, sales, and orders.</p>
+        </div>
+      </section>
 
-    <!-- Update Quantity -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Staff/Admin: Update Quantity</h2>
-      <div class="row"><label>Book ID</label><input id="qty_book_id" placeholder="1" /></div>
-      <div class="row"><label>New Quantity</label><input id="qty_new" placeholder="25" /></div>
-      <div class="row actions">
-        <button id="updateQtyBtn">Update Qty</button>
-      </div>
-    </section>
+      <!-- INVENTORY VIEW (STAFF/ADMIN) -->
+      <section id="view-inventory" class="view hidden roleBlock" data-role="admin,staff">
+        <div class="viewHeader">
+          <h2>Inventory</h2>
+          <div class="muted small">Add, update, and remove books.</div>
+        </div>
 
-    <!-- Remove Book -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Staff/Admin: Remove Book</h2>
-      <p class="muted small">Deletes a book from the catalog. Use with caution.</p>
-      <div class="row"><label>Book ID</label><input id="del_book_id" placeholder="1" /></div>
-      <div class="row actions">
-        <button id="deleteBookBtn" class="secondary">Remove Book</button>
-      </div>
-    </section>
+        <div class="viewGrid">
+          <!-- Add Book -->
+          <section class="card">
+            <h3 class="cardTitle">Add Book</h3>
+            <div class="row"><label>ISBN</label><input id="add_isbn" placeholder="optional" /></div>
+            <div class="row"><label>Title</label><input id="add_title" /></div>
+            <div class="row"><label>Author</label><input id="add_author" /></div>
+            <div class="row"><label>Price</label><input id="add_price" placeholder="12.99" /></div>
+            <div class="row"><label>Quantity</label><input id="add_qty" placeholder="10" /></div>
 
-    <!-- Update Book Details -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Staff/Admin: Update Book Details</h2>
-      <p class="muted small">PATCH fields are optional — fill only what you want to change.</p>
-      <div class="row"><label>Book ID</label><input id="edit_book_id" placeholder="1" /></div>
-      <div class="row"><label>Title</label><input id="edit_title" placeholder="leave blank to keep" /></div>
-      <div class="row"><label>Author</label><input id="edit_author" placeholder="leave blank to keep" /></div>
-      <div class="row"><label>ISBN</label><input id="edit_isbn" placeholder="leave blank to keep" /></div>
-      <div class="row"><label>Price</label><input id="edit_price" placeholder="leave blank to keep" /></div>
-      <div class="row actions">
-        <button id="updateDetailsBtn">Update Details</button>
-      </div>
-    </section>
+            <div class="row actions">
+              <button id="addBookBtn">Add</button>
+              <div></div><div></div>
+            </div>
 
-    <!-- Record Sale -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Staff/Admin: Record Sale (POS)</h2>
-      <div class="row"><label>Book ID</label><input id="sale_book_id" placeholder="1" /></div>
-      <div class="row"><label>Quantity</label><input id="sale_qty" placeholder="1" /></div>
-      <div class="row actions">
-        <button id="recordSaleBtn">Record Sale</button>
-      </div>
-      <p class="muted small">This reduces inventory and creates a Sale row used by the Sales Report.</p>
-    </section>
+            <div id="addBookStatus" class="inlineStatus"></div>
+          </section>
 
-    <!-- Customer Checkout -->
-    <section class="card roleBlock" data-role="customer">
-      <h2>Customer: Checkout (Create Order)</h2>
-      <p class="muted small">
-        Enter items as JSON: <span class="mono">[{ "book_id": 1, "quantity": 2 }]</span>
-      </p>
-      <div class="row">
-        <label>Items JSON</label>
-        <textarea id="order_items" rows="4">[{ "book_id": 1, "quantity": 1 }]</textarea>
-      </div>
-      <div class="row actions">
-        <button id="placeOrderBtn">Place Order</button>
-      </div>
-      <p class="muted small">Note: Sprint 1 demo uses a simplified checkout (inventory updates + order status).</p>
-    </section>
+          <!-- Update Quantity -->
+          <section class="card">
+            <h3 class="cardTitle">Update Quantity</h3>
+            <div class="row"><label>Book ID</label><input id="qty_book_id" placeholder="1" /></div>
+            <div class="row"><label>New Quantity</label><input id="qty_new" placeholder="25" /></div>
 
-    <!-- Reports (Sales + Low Stock + Financial) -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Reports</h2>
+            <div class="row actions">
+              <button id="updateQtyBtn">Update Qty</button>
+              <div></div><div></div>
+            </div>
 
-      <div class="row actions">
-        <button id="salesReportBtn">Sales Report</button>
-        <button id="lowStockBtn" class="secondary">Low Stock</button>
-        <input id="lowStockThreshold" placeholder="threshold (default 5)" />
-      </div>
+            <div id="updateQtyStatus" class="inlineStatus"></div>
+          </section>
 
-      <div class="row actions actions4">
-        <input id="fin_start" type="date" />
-        <input id="fin_end" type="date" />
-        <select id="fin_group_by">
-          <option value="day">day</option>
-          <option value="week">week</option>
-          <option value="month">month</option>
-        </select>
-        <button id="financialReportBtn" class="secondary">Financial Report</button>
-      </div>
+          <!-- Update Details -->
+          <section class="card">
+            <h3 class="cardTitle">Update Book Details</h3>
+            <p class="muted small">PATCH fields are optional — fill only what you want to change.</p>
+            <div class="row"><label>Book ID</label><input id="edit_book_id" placeholder="1" /></div>
+            <div class="row"><label>Title</label><input id="edit_title" placeholder="leave blank to keep" /></div>
+            <div class="row"><label>Author</label><input id="edit_author" placeholder="leave blank to keep" /></div>
+            <div class="row"><label>ISBN</label><input id="edit_isbn" placeholder="leave blank to keep" /></div>
+            <div class="row"><label>Price</label><input id="edit_price" placeholder="leave blank to keep" /></div>
 
-      <div class="row actions actions4">
-        <button id="fin_today" class="secondary">Today</button>
-        <button id="fin_last7" class="secondary">Last 7 days</button>
-        <button id="fin_month" class="secondary">This month</button>
-        <button id="fin_clear" class="secondary">Clear dates</button>
-      </div>
-      <pre id="reportOut" class="pre"></pre>
-    </section>
+            <div class="row actions">
+              <button id="updateDetailsBtn">Update Details</button>
+              <div></div><div></div>
+            </div>
 
-    <!-- Publisher Replenishment -->
-    <section class="card roleBlock" data-role="admin,staff">
-      <h2>Publisher Replenishment</h2>
+            <div id="updateDetailsStatus" class="inlineStatus"></div>
+          </section>
 
-      <div class="row demoRow">
-        <div>
-          <label>PO Items (JSON)</label>
-          <textarea id="po_items" rows="4">[
+          <!-- Remove Book -->
+          <section class="card">
+            <h3 class="cardTitle dangerTitle">Remove Book</h3>
+            <p class="muted small">Deletes a book from the catalog. Use with caution.</p>
+            <div class="row"><label>Book ID</label><input id="del_book_id" placeholder="1" /></div>
+
+            <div class="row actions">
+              <button id="deleteBookBtn" class="secondary">Remove Book</button>
+              <div></div><div></div>
+            </div>
+
+            <div id="deleteBookStatus" class="inlineStatus"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- SALES / CHECKOUT VIEW -->
+      <section id="view-sales" class="view hidden">
+        <div class="viewHeader">
+          <h2>Sales / Checkout</h2>
+          <div class="muted small">Record sales (staff) or place orders (customer).</div>
+        </div>
+
+        <div class="viewGrid">
+          <!-- Record Sale -->
+          <section class="card roleBlock" data-role="admin,staff">
+            <h3 class="cardTitle">Record Sale (POS)</h3>
+            <div class="row"><label>Book ID</label><input id="sale_book_id" placeholder="1" /></div>
+            <div class="row"><label>Quantity</label><input id="sale_qty" placeholder="1" /></div>
+
+            <div class="row actions">
+              <button id="recordSaleBtn">Record Sale</button>
+              <div></div><div></div>
+            </div>
+
+            <div id="recordSaleStatus" class="inlineStatus"></div>
+
+            <p class="muted small">This reduces inventory and creates a Sale row used by the Sales Report.</p>
+          </section>
+
+          <!-- Customer Checkout -->
+          <section class="card roleBlock" data-role="customer">
+            <h3 class="cardTitle">Checkout (Create Order)</h3>
+            <p class="muted small">
+              Enter items as JSON: <span class="mono">[{ "book_id": 1, "quantity": 2 }]</span>
+            </p>
+
+            <div class="row demoRow">
+              <div>
+                <label>Items JSON</label>
+                <textarea id="order_items" rows="6">[{ "book_id": 1, "quantity": 1 }]</textarea>
+              </div>
+            </div>
+
+            <div class="row actions">
+              <button id="placeOrderBtn">Place Order</button>
+              <div></div><div></div>
+            </div>
+
+            <div id="placeOrderStatus" class="inlineStatus"></div>
+
+            <p class="muted small">Note: Sprint 1 demo uses a simplified checkout (inventory updates + order status).</p>
+          </section>
+        </div>
+      </section>
+
+      <!-- REPORTS VIEW -->
+      <section id="view-reports" class="view hidden roleBlock" data-role="admin,staff">
+        <div class="viewHeader">
+          <h2>Reports</h2>
+          <div class="muted small">Sales, low stock, and financial summaries.</div>
+        </div>
+
+        <div class="card">
+          <div class="toolbar">
+            <div class="toolbarGroup">
+              <button id="salesReportBtn">Sales Report</button>
+              <button id="lowStockBtn" class="secondary">Low Stock</button>
+              <input id="lowStockThreshold" placeholder="threshold (default 5)" />
+            </div>
+
+            <div class="toolbarGroup">
+              <input id="fin_start" type="date" />
+              <input id="fin_end" type="date" />
+              <select id="fin_group_by">
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+              </select>
+              <button id="financialReportBtn" class="secondary">Financial Report</button>
+            </div>
+
+            <div class="toolbarGroup">
+              <button id="fin_today" class="secondary">Today</button>
+              <button id="fin_last7" class="secondary">Last 7 days</button>
+              <button id="fin_month" class="secondary">This month</button>
+              <button id="fin_clear" class="secondary">Clear dates</button>
+            </div>
+          </div>
+
+          <pre id="reportOut" class="pre bigPre"></pre>
+        </div>
+      </section>
+
+      <!-- PUBLISHER VIEW -->
+      <section id="view-publisher" class="view hidden roleBlock" data-role="admin,staff">
+        <div class="viewHeader">
+          <h2>Publisher Replenishment</h2>
+          <div class="muted small">Create, submit, and receive purchase orders.</div>
+        </div>
+
+        <div class="viewGrid">
+          <section class="card">
+            <h3 class="cardTitle">Create / List Orders</h3>
+
+            <div class="row demoRow">
+              <div>
+                <label>PO Items (JSON)</label>
+                <textarea id="po_items" rows="6">[
   { "book_id": 2, "quantity": 10 }
 ]</textarea>
+              </div>
+            </div>
+
+            <div class="row actions">
+              <button id="createPOBtn">Create Publisher Order</button>
+              <button id="listPOBtn" class="secondary">List Publisher Orders</button>
+              <div></div>
+            </div>
+
+            <div id="publisherListStatus" class="inlineStatus"></div>
+          </section>
+
+          <section class="card">
+            <h3 class="cardTitle">Submit / Receive</h3>
+
+            <div class="row">
+              <label>Purchase Order ID</label>
+              <input id="po_id" type="number" placeholder="Enter PO ID" />
+            </div>
+
+            <div class="row actions">
+              <button id="submitPOBtn" class="secondary">Submit Order</button>
+              <button id="receivePOBtn">Receive & Restock</button>
+              <div></div>
+            </div>
+
+            <div id="publisherActionStatus" class="inlineStatus"></div>
+
+            <p class="muted small">
+              Output appears below in <strong>Publisher Output</strong>.
+            </p>
+          </section>
         </div>
-      </div>
 
-      <div class="row actions">
-        <button id="createPOBtn">Create Publisher Order</button>
-        <button id="listPOBtn" class="secondary">List Publisher Orders</button>
-        <div></div>
-      </div>
+        <!-- Publisher Output -->
+        <section class="card" style="margin-top:14px;">
+          <h3 class="cardTitle">Publisher Output</h3>
+          <pre id="publisherOut" class="pre bigPre"></pre>
+        </section>
+      </section>
 
-      <hr />
+      <!-- CONSOLE VIEW -->
+      <section id="view-console" class="view hidden">
+        <div class="viewHeader">
+          <h2>Console</h2>
+          <div class="muted small">Debug output for API calls and errors.</div>
+        </div>
 
-      <div class="row">
-        <label>Purchase Order ID</label>
-        <input id="po_id" type="number" placeholder="Enter PO ID" />
-      </div>
+        <div class="card">
+          <pre id="console" class="pre bigPre"></pre>
+          <div class="row actions">
+            <button id="clearConsoleBtn" class="secondary">Clear</button>
+            <div></div>
+            <div></div>
+          </div>
+        </div>
+      </section>
 
-      <div class="row actions">
-        <button id="submitPOBtn" class="secondary">Submit Order</button>
-        <button id="receivePOBtn">Receive & Restock</button>
-        <div></div>
-      </div>
-    </section>
-
-    <!-- Console -->
-    <section class="card">
-      <h2>Console</h2>
-      <pre id="console" class="pre"></pre>
-      <div class="row actions">
-        <button id="clearConsoleBtn" class="secondary">Clear</button>
-        <div></div>
-        <div></div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="container muted small">
-    <div>Tip: If something fails, scroll the Console for the API response.</div>
-  </footer>
+    </main>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

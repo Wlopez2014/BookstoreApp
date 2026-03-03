@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import request, jsonify, render_template
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import func
 
 from . import db
 from .models import User, Book, Sale, Order, OrderItem, PurchaseOrder, PurchaseOrderItem
@@ -18,20 +19,44 @@ def register_routes(app):
     def parse_dt(s: str):
         """
         Accepts:
-          - "YYYY-MM-DD"
+          - "YYYY-MM-DD"  (treated as midnight UTC for that day)
           - full ISO datetime (with or without timezone)
         Returns timezone-aware datetime (UTC) or None.
         """
         try:
-            dt = datetime.fromisoformat(s)
+            s = (s or "").strip()
+            if not s:
+                return None
+
+            # Date-only form
+            if len(s) == 10 and s[4] == "-" and s[7] == "-":
+                return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+
+            # ISO datetime 
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                dt = dt.astimezone(timezone.utc)
             return dt
         except Exception:
             return None
 
+    def end_exclusive(end_raw: str | None, end_dt: datetime | None):
+        """
+        If end is a date-only string (YYYY-MM-DD), treat it as inclusive end-of-day
+        by converting to an exclusive upper bound (end + 1 day).
+        For full datetimes, return None (caller can use <= end_dt).
+        """
+        if not end_dt or not end_raw:
+            return None
+        end_raw = end_raw.strip()
+        if len(end_raw) == 10 and end_raw[4] == "-" and end_raw[7] == "-":
+            return end_dt + timedelta(days=1)
+        return None
+
     # ----------------------------
-    # UI (simple browser dashboard)
+    # UI browser dashboard
     # ----------------------------
     @app.get("/")
     def ui_home():
@@ -212,17 +237,6 @@ def register_routes(app):
     def delete_book(book_id: int):
         book = Book.query.get_or_404(book_id)
 
-        # Block delete if it has sales/orders
-        try:
-            has_sales = hasattr(book, "sales") and book.sales and len(book.sales) > 0
-            has_order_items = hasattr(book, "order_items") and book.order_items and len(book.order_items) > 0
-            if has_sales or has_order_items:
-                return jsonify({
-                    "error": "Cannot delete book that has sales/orders. Consider marking it inactive instead."
-                }), 409
-        except Exception:
-            pass
-
         db.session.delete(book)
         db.session.commit()
         return jsonify({"message": f"Book {book_id} deleted"}), 200
@@ -297,8 +311,7 @@ def register_routes(app):
                 return jsonify({"error": f"Insufficient stock for '{book.title}'"}), 400
 
             book.quantity -= qty
-            line_total = book.price * qty
-            total += line_total
+            total += (book.price * qty)
 
             db.session.add(OrderItem(order=order, book_id=book.id, quantity=qty, price_each=book.price))
 
@@ -328,7 +341,7 @@ def register_routes(app):
                 "title": it.book.title if it.book else None,
                 "quantity": it.quantity,
                 "price_each": it.price_each
-            } for it in o.items]
+            } for it in (o.items or [])]
         } for o in orders]), 200
 
     @app.get("/api/orders")
@@ -346,7 +359,7 @@ def register_routes(app):
                 "title": it.book.title if it.book else None,
                 "quantity": it.quantity,
                 "price_each": it.price_each
-            } for it in o.items]
+            } for it in (o.items or [])]
         } for o in orders]), 200
 
     # ----------------------------
@@ -399,7 +412,7 @@ def register_routes(app):
                 "book_id": it.book_id,
                 "title": it.book.title if it.book else None,
                 "quantity": it.quantity
-            } for it in po.items]
+            } for it in (po.items or [])]
         } for po in pos]), 200
 
     @app.get("/api/publisher-orders/<int:po_id>")
@@ -415,7 +428,7 @@ def register_routes(app):
                 "book_id": it.book_id,
                 "title": it.book.title if it.book else None,
                 "quantity": it.quantity
-            } for it in po.items]
+            } for it in (po.items or [])]
         }), 200
 
     @app.patch("/api/publisher-orders/<int:po_id>/submit")
@@ -485,38 +498,92 @@ def register_routes(app):
     @app.get("/api/reports/sales")
     @role_required("admin", "staff")
     def sales_report():
-        start = request.args.get("start")
-        end = request.args.get("end")
+        start_raw = request.args.get("start")
+        end_raw = request.args.get("end")
 
-        q = Sale.query
-        if start:
-            dt = parse_dt(start)
-            if dt:
-                q = q.filter(Sale.timestamp >= dt)
+        include_orders = (request.args.get("include_orders") or "1") == "1"
+        order_status = (request.args.get("order_status") or "Completed").strip()
 
-        if end:
-            dt = parse_dt(end)
-            if dt:
-                q = q.filter(Sale.timestamp <= dt)
+        start_dt = parse_dt(start_raw) if start_raw else None
+        end_dt = parse_dt(end_raw) if end_raw else None
+        end_dt_ex = end_exclusive(end_raw, end_dt)
 
-        sales = q.order_by(Sale.timestamp.desc()).all()
+        rows = []
 
-        items = [{
-            "id": s.id,
-            "timestamp": s.timestamp.isoformat() if s.timestamp else None,
-            "book_id": s.book_id,
-            "title": s.book.title if s.book else None,
-            "quantity": int(s.quantity),
-            "total": float(s.total),
-            "staff": s.staff.username if s.staff else None
-        } for s in sales]
+        # ---- POS SALES ----
+        sales_q = Sale.query
+        if start_dt:
+            sales_q = sales_q.filter(Sale.timestamp >= start_dt)
+        if end_dt:
+            if end_dt_ex:
+                sales_q = sales_q.filter(Sale.timestamp < end_dt_ex)
+            else:
+                sales_q = sales_q.filter(Sale.timestamp <= end_dt)
 
-        total_sales = round(sum(float(s.total) for s in sales), 2)
+        sales = sales_q.order_by(Sale.timestamp.desc()).all()
+
+        pos_revenue = 0.0
+        for s in sales:
+            total = float(s.total)
+            pos_revenue += total
+            rows.append({
+                "source": "pos_sale",
+                "id": s.id,
+                "timestamp": s.timestamp.isoformat() if s.timestamp else None,
+                "book_id": s.book_id,
+                "title": s.book.title if s.book else None,
+                "quantity": int(s.quantity),
+                "total": round(total, 2),
+                "actor": s.staff.username if s.staff else None
+            })
+
+        # ---- CUSTOMER ORDERS ----
+        orders_revenue = 0.0
+        if include_orders:
+            orders_q = Order.query.filter(func.lower(Order.status) == order_status.lower())
+            if start_dt:
+                orders_q = orders_q.filter(Order.timestamp >= start_dt)
+            if end_dt:
+                if end_dt_ex:
+                    orders_q = orders_q.filter(Order.timestamp < end_dt_ex)
+                else:
+                    orders_q = orders_q.filter(Order.timestamp <= end_dt)
+
+            orders = orders_q.order_by(Order.timestamp.desc()).all()
+
+            for o in orders:
+                cust = o.customer.username if o.customer else "customer"
+                for it in (o.items or []):
+                    title = it.book.title if it.book else None
+                    line_total = float(it.price_each) * int(it.quantity)
+                    orders_revenue += line_total
+                    rows.append({
+                        "source": "customer_order",
+                        "id": f"order-{o.id}-item-{it.id}",
+                        "order_id": o.id,
+                        "timestamp": o.timestamp.isoformat() if o.timestamp else None,
+                        "book_id": it.book_id,
+                        "title": title,
+                        "quantity": int(it.quantity),
+                        "total": round(line_total, 2),
+                        "actor": cust,
+                        "order_status": o.status
+                    })
+
+        rows.sort(key=lambda r: r.get("timestamp") or "", reverse=True)
 
         return jsonify({
-            "count": len(items),
-            "total_sales": total_sales,
-            "sales": items
+            "count": len(rows),
+            "total_sales": round(pos_revenue + orders_revenue, 2),
+            "pos_sales_revenue": round(pos_revenue, 2),
+            "orders_revenue": round(orders_revenue, 2),
+            "sales": rows,
+            "filters": {
+                "start": start_dt.isoformat() if start_dt else None,
+                "end": (end_dt_ex.isoformat() if end_dt_ex else (end_dt.isoformat() if end_dt else None)),
+                "include_orders": include_orders,
+                "order_status": order_status
+            }
         }), 200
 
     @app.get("/api/reports/financial")
@@ -536,16 +603,30 @@ def register_routes(app):
         end = request.args.get("end")
         group_by = (request.args.get("group_by") or "day").lower()
         include_orders = (request.args.get("include_orders") or "1") == "1"
-        order_status = request.args.get("order_status") or "Completed"
+        order_status = (request.args.get("order_status") or "Completed").strip()
 
         start_dt = parse_dt(start) if start else None
         end_dt = parse_dt(end) if end else None
+        end_dt_ex = end_exclusive(end, end_dt)
+
+        def as_utc_aware(dt: datetime | None) -> datetime | None:
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
 
         def in_range(dt):
+            dt = as_utc_aware(dt)
+            if dt is None:
+                return False
+
             if start_dt and dt < start_dt:
                 return False
-            if end_dt and dt > end_dt:
-                return False
+            if end_dt:
+                if end_dt_ex:
+                    return dt < end_dt_ex
+                return dt <= end_dt
             return True
 
         if group_by not in ("day", "week", "month"):
@@ -559,25 +640,31 @@ def register_routes(app):
                 return f"{iso.year}-W{iso.week:02d}"
             return f"{dt.year}-{dt.month:02d}"
 
-        # Pull Sales
+        # ---- Pull Sales ----
         sales_q = Sale.query
         if start_dt:
             sales_q = sales_q.filter(Sale.timestamp >= start_dt)
         if end_dt:
-            sales_q = sales_q.filter(Sale.timestamp <= end_dt)
+            if end_dt_ex:
+                sales_q = sales_q.filter(Sale.timestamp < end_dt_ex)
+            else:
+                sales_q = sales_q.filter(Sale.timestamp <= end_dt)
         sales = sales_q.order_by(Sale.timestamp.asc()).all()
 
-        # Pull Orders (optional)
+        # ---- Pull Orders ----
         orders = []
         if include_orders:
-            orders_q = Order.query.filter(Order.status == order_status)
+            orders_q = Order.query.filter(func.lower(Order.status) == order_status.lower())
             if start_dt:
                 orders_q = orders_q.filter(Order.timestamp >= start_dt)
             if end_dt:
-                orders_q = orders_q.filter(Order.timestamp <= end_dt)
+                if end_dt_ex:
+                    orders_q = orders_q.filter(Order.timestamp < end_dt_ex)
+                else:
+                    orders_q = orders_q.filter(Order.timestamp <= end_dt)
             orders = orders_q.order_by(Order.timestamp.asc()).all()
 
-        # KPIs
+        # ---- KPIs ----
         sales_revenue = round(sum(float(s.total) for s in sales), 2)
         sales_units = int(sum(int(s.quantity) for s in sales))
         sales_count = len(sales)
@@ -589,12 +676,15 @@ def register_routes(app):
 
         total_revenue = round(sales_revenue + orders_revenue, 2)
 
-        # Time series buckets
+        # ---- Time series buckets ----
         series = {}
+
         for s in sales:
-            if not in_range(s.timestamp):
+            ts = as_utc_aware(s.timestamp)
+            if not in_range(ts):
                 continue
-            k = bucket_key(s.timestamp)
+
+            k = bucket_key(ts)
             series.setdefault(k, {
                 "revenue_sales": 0.0,
                 "revenue_orders": 0.0,
@@ -607,9 +697,11 @@ def register_routes(app):
             series[k]["sales_count"] += 1
 
         for o in orders:
-            if not in_range(o.timestamp):
+            ts = as_utc_aware(o.timestamp)
+            if not in_range(ts):
                 continue
-            k = bucket_key(o.timestamp)
+
+            k = bucket_key(ts)
             series.setdefault(k, {
                 "revenue_sales": 0.0,
                 "revenue_orders": 0.0,
@@ -633,7 +725,7 @@ def register_routes(app):
                 "orders_count": row["orders_count"]
             })
 
-        # Top books + staff performance (from Sales only)
+        # ---- Top books + staff performance ----
         top_books = {}
         staff_perf = {}
 
@@ -660,7 +752,7 @@ def register_routes(app):
         return jsonify({
             "filters": {
                 "start": start_dt.isoformat() if start_dt else None,
-                "end": end_dt.isoformat() if end_dt else None,
+                "end": (end_dt_ex.isoformat() if end_dt_ex else (end_dt.isoformat() if end_dt else None)),
                 "group_by": group_by,
                 "include_orders": include_orders,
                 "order_status": order_status
