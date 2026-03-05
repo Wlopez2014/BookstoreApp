@@ -378,3 +378,246 @@ th{
   border-left-color:#fbbf24;
   color: var(--text);
 }
+
+/* =============================================
+   FINANCIAL DASHBOARD — S2-T3
+   ============================================= */
+
+/* KPI Cards */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.kpiCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.kpiCard::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 14px 14px 0 0;
+}
+
+.kpiCard.accent-blue::before  { background: #6ea8fe; }
+.kpiCard.accent-green::before { background: #34d399; }
+.kpiCard.accent-purple::before{ background: #a78bfa; }
+.kpiCard.accent-amber::before { background: #fbbf24; }
+
+.kpiLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.kpiValue {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiSub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* Chart card */
+.chartCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.chartTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.chartLegend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legendDot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.chartWrap {
+  position: relative;
+  height: 220px;
+}
+
+/* Dashboard tables grid */
+.dashGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.dashTableCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.dashTableTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.dashTable th {
+  background: #0f1420;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashTable td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(35,48,74,.5);
+  color: var(--text);
+}
+
+.dashTable tr:last-child td {
+  border-bottom: none;
+}
+
+.rankBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(110,168,254,.12);
+  color: var(--accent);
+}
+
+.rankBadge.gold   { background: rgba(251,191,36,.12); color:#fbbf24; }
+.rankBadge.silver { background: rgba(167,178,204,.12); color:#a9b4cc; }
+.rankBadge.bronze { background: rgba(180,120,80,.12);  color:#cd8b5a; }
+
+.revenueBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.revenueBarFill {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #6ea8fe, #a78bfa);
+  min-width: 2px;
+  transition: width .4s ease;
+}
+
+/* Empty / loading state */
+.dashEmpty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* Raw JSON toggle */
+.rawToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 8px;
+}
+
+.rawToggle:hover { color: var(--text); }
+
+/* No-data placeholder for dashboard */
+#finDashboard.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  color: var(--muted);
+  font-size: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 980px) {
+  .kpiGrid { grid-template-columns: 1fr 1fr; }
+  .dashGrid { grid-template-columns: 1fr; }
+}
+
+/* Transaction log source badges */
+.txnBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+.txnBadge.pos {
+  background: rgba(110,168,254,.15);
+  color: #6ea8fe;
+}
+
+.txnBadge.order {
+  background: rgba(167,139,250,.15);
+  color: #a78bfa;
+}
+

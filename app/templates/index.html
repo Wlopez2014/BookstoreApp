@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bookstore Management - Sprint 1</title>
+  <title>Bookstore Management - Sprint 2</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -13,10 +14,10 @@
     <div class="topbar-left">
       <div class="brand">
         <div class="brand-title">
-          Bookstore Management System <span class="badge">Sprint 1</span>
+          Bookstore Management System <span class="badge">Sprint 2</span>
         </div>
         <div class="brand-sub muted">
-          Run the EXE, then use this page to log in and test Sprint 1 functionality.
+          Run the EXE, then use this page to log in and test Sprint 2 functionality.
         </div>
       </div>
     </div>
@@ -72,7 +73,6 @@
             <div></div>
           </div>
 
-          <!-- Inline status (Auth) -->
           <div id="loginStatus" class="inlineStatus"></div>
 
           <div class="pill demoPill">
@@ -104,7 +104,6 @@
             <button id="searchBtn" class="secondary">Search</button>
           </div>
 
-          <!-- Inline status (Catalog) -->
           <div id="catalogStatus" class="inlineStatus"></div>
 
           <div class="tableWrap">
@@ -249,28 +248,33 @@
       <section id="view-reports" class="view hidden roleBlock" data-role="admin,staff">
         <div class="viewHeader">
           <h2>Reports</h2>
-          <div class="muted small">Sales, low stock, and financial summaries.</div>
+          <div class="muted small">Sales, low stock, and financial performance analysis.</div>
         </div>
 
-        <div class="card">
+        <!-- Toolbar -->
+        <div class="card" style="margin-bottom:14px;">
           <div class="toolbar">
+            <!-- Row 1: Low Stock -->
             <div class="toolbarGroup">
-              <button id="salesReportBtn">Sales Report</button>
-              <button id="lowStockBtn" class="secondary">Low Stock</button>
+              <button id="lowStockBtn" class="secondary">⚠️ Low Stock Report</button>
               <input id="lowStockThreshold" placeholder="threshold (default 5)" />
+              <div></div>
+              <div></div>
             </div>
 
+            <!-- Row 2: Financial Report Controls -->
             <div class="toolbarGroup">
               <input id="fin_start" type="date" />
               <input id="fin_end" type="date" />
               <select id="fin_group_by">
-                <option value="day">day</option>
-                <option value="week">week</option>
-                <option value="month">month</option>
+                <option value="day">Group: Day</option>
+                <option value="week">Group: Week</option>
+                <option value="month">Group: Month</option>
               </select>
-              <button id="financialReportBtn" class="secondary">Financial Report</button>
+              <button id="financialReportBtn">Financial Dashboard</button>
             </div>
 
+            <!-- Row 3: Quick date shortcuts -->
             <div class="toolbarGroup">
               <button id="fin_today" class="secondary">Today</button>
               <button id="fin_last7" class="secondary">Last 7 days</button>
@@ -278,9 +282,110 @@
               <button id="fin_clear" class="secondary">Clear dates</button>
             </div>
           </div>
-
-          <pre id="reportOut" class="pre bigPre"></pre>
         </div>
+
+        <!-- ── FINANCIAL DASHBOARD (S2-T3) ── -->
+        <div id="finDashboard" class="hidden">
+
+          <!-- KPI Cards -->
+          <div class="kpiGrid" id="kpiGrid">
+            <div class="kpiCard accent-blue">
+              <div class="kpiLabel">Total Revenue</div>
+              <div class="kpiValue" id="kpi-total-revenue">—</div>
+              <div class="kpiSub" id="kpi-total-sub">All sources combined</div>
+            </div>
+            <div class="kpiCard accent-green">
+              <div class="kpiLabel">POS Sales Revenue</div>
+              <div class="kpiValue" id="kpi-pos-revenue">—</div>
+              <div class="kpiSub" id="kpi-pos-sub">In-store transactions</div>
+            </div>
+            <div class="kpiCard accent-purple">
+              <div class="kpiLabel">Online Orders Revenue</div>
+              <div class="kpiValue" id="kpi-orders-revenue">—</div>
+              <div class="kpiSub" id="kpi-orders-sub">Customer checkouts</div>
+            </div>
+            <div class="kpiCard accent-amber">
+              <div class="kpiLabel">Units Sold</div>
+              <div class="kpiValue" id="kpi-units">—</div>
+              <div class="kpiSub" id="kpi-avg-sale">Avg sale: —</div>
+            </div>
+          </div>
+
+          <!-- Revenue Trend Chart -->
+          <div class="chartCard">
+            <div class="chartHeader">
+              <span class="chartTitle">Revenue Trend</span>
+              <div class="chartLegend">
+                <span><span class="legendDot" style="background:#6ea8fe"></span>POS Sales</span>
+                <span><span class="legendDot" style="background:#a78bfa"></span>Online Orders</span>
+                <span><span class="legendDot" style="background:#34d399"></span>Total</span>
+              </div>
+            </div>
+            <div class="chartWrap">
+              <canvas id="revenueChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Top Books + Staff Performance -->
+          <div class="dashGrid">
+            <!-- Top Books -->
+            <div class="dashTableCard">
+              <div class="dashTableTitle">🏆 Top Books by Revenue</div>
+              <div id="topBooksWrap">
+                <div class="dashEmpty">Run the Financial Dashboard to see data.</div>
+              </div>
+            </div>
+
+            <!-- Staff Performance -->
+            <div class="dashTableCard">
+              <div class="dashTableTitle">👤 Staff Performance</div>
+              <div id="staffWrap">
+                <div class="dashEmpty">Run the Financial Dashboard to see data.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transaction Log -->
+          <div class="dashTableCard" style="margin-bottom:16px;">
+            <div class="dashTableTitle" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>🧾 Transaction Log</span>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input id="txnSearch" placeholder="Filter by title or actor…"
+                  style="width:220px;padding:6px 10px;font-size:12px;" />
+                <select id="txnSourceFilter" style="width:140px;padding:6px 10px;font-size:12px;">
+                  <option value="all">All sources</option>
+                  <option value="pos_sale">POS only</option>
+                  <option value="customer_order">Orders only</option>
+                </select>
+              </div>
+            </div>
+            <div id="txnWrap">
+              <div class="dashEmpty">Run the Financial Dashboard to see transactions.</div>
+            </div>
+            <div id="txnPager" class="hidden"
+              style="display:flex;justify-content:space-between;align-items:center;padding:10px 10px 2px;font-size:12px;color:var(--muted);">
+              <span id="txnPageInfo"></span>
+              <div style="display:flex;gap:8px;">
+                <button id="txnPrev" class="secondary smallBtn">← Prev</button>
+                <button id="txnNext" class="secondary smallBtn">Next →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Raw JSON toggle -->
+          <div class="rawToggle" id="rawToggle" onclick="document.getElementById('finRawOut').classList.toggle('hidden')">
+            ▶ Raw JSON response
+          </div>
+          <pre id="finRawOut" class="pre hidden" style="max-height:300px;margin-bottom:14px;"></pre>
+
+        </div>
+
+        <!-- Generic report output (Sales Report / Low Stock) -->
+        <div id="genericReportCard" class="card">
+          <div class="cardTitle">Report Output</div>
+          <pre id="reportOut" class="pre bigPre">Click a report button above to load data…</pre>
+        </div>
+
       </section>
 
       <!-- PUBLISHER VIEW -->
@@ -334,7 +439,6 @@
           </section>
         </div>
 
-        <!-- Publisher Output -->
         <section class="card" style="margin-top:14px;">
           <h3 class="cardTitle">Publisher Output</h3>
           <pre id="publisherOut" class="pre bigPre"></pre>
