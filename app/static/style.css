@@ -601,6 +601,11 @@ th{
   .dashGrid { grid-template-columns: 1fr; }
 }
 
+/* Order history — status pill colours are inlined; card hover highlight */
+.dashTableCard:has(> div > span[style*="Order #"]):hover {
+  border-color: #2f4166;
+}
+
 /* Transaction log source badges */
 .txnBadge {
   display: inline-block;
@@ -621,3 +626,11 @@ th{
   color: #a78bfa;
 }
 
+
+/* Auth tabs */
+.authTabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:16px; }
+.authTab { flex:1; background:transparent; border:none; border-bottom:2px solid transparent;
+  color:var(--muted); border-radius:0; padding:10px 12px; font-size:14px; font-weight:600;
+  cursor:pointer; margin-bottom:-1px; transition:color .15s,border-color .15s; }
+.authTab:hover { color:var(--text); }
+.authTab.active { color:var(--accent); border-bottom-color:var(--accent); }

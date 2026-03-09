@@ -9,8 +9,12 @@
   let role = sessionStorage.getItem("role") || "";
   let username = sessionStorage.getItem("username") || "";
 
-  // Chart.js instance — kept so we can destroy/recreate on refresh
+  // Chart.js instances — kept so we can destroy/recreate on refresh
   let revenueChart = null;
+
+  // Cart: { [book_id]: { book_id, title, price, quantity, stock } }
+  let cart = {};
+  let revenueTrendChart = null;
 
   function log(msg, obj){
     const ts = new Date().toLocaleTimeString();
@@ -50,10 +54,11 @@
 
   function clearAllStatuses(){
     [
-      "loginStatus","catalogStatus",
+      "loginStatus","registerStatus","catalogStatus",
       "addBookStatus","updateQtyStatus","updateDetailsStatus","deleteBookStatus",
       "recordSaleStatus","placeOrderStatus",
-      "publisherListStatus","publisherActionStatus"
+      "publisherListStatus","publisherActionStatus",
+      "ordersStatus"
     ].forEach(clearStatus);
   }
 
@@ -151,20 +156,48 @@
       const table = $("booksTable");
       if (!table) return;
 
+      // Show Add column header only for customers
+      const cartColHeader = $("cartColHeader");
+      if (cartColHeader) cartColHeader.classList.toggle("hidden", role !== "customer");
+
       const tbody = table.querySelector("tbody");
       tbody.innerHTML = "";
 
-      (books || []).forEach(b=>{
+      (books || []).forEach(b => {
         const tr = document.createElement("tr");
+        const inCart = cart[b.id] ? cart[b.id].quantity : 0;
+        const cartCell = role === "customer"
+          ? `<td><button class="smallBtn secondary addToCartBtn"
+               data-id="${b.id}" data-title="${escHtml(b.title)}"
+               data-price="${b.price}" data-stock="${b.quantity}"
+               style="padding:4px 10px;font-size:11px;"
+               ${b.quantity <= 0 ? "disabled title='Out of stock'" : ""}>
+               ${inCart > 0 ? `✓ ${inCart} in cart` : "+ Add"}
+             </button></td>`
+          : "";
         tr.innerHTML = `
           <td>${b.id}</td>
           <td>${b.isbn || ""}</td>
-          <td>${b.title}</td>
-          <td>${b.author}</td>
-          <td>${b.price}</td>
-          <td>${b.quantity}</td>`;
+          <td>${escHtml(b.title)}</td>
+          <td>${escHtml(b.author)}</td>
+          <td>$${Number(b.price).toFixed(2)}</td>
+          <td>${b.quantity}</td>
+          ${cartCell}`;
         tbody.appendChild(tr);
       });
+
+      // Wire Add-to-Cart buttons
+      tbody.querySelectorAll(".addToCartBtn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          addToCart(parseInt(btn.dataset.id,10), btn.dataset.title,
+                    parseFloat(btn.dataset.price), parseInt(btn.dataset.stock,10));
+          refreshBooks(q);
+        });
+      });
+
+      // Show cart panel only for customers
+      const cartPanel = $("cartPanel");
+      if (cartPanel) cartPanel.classList.toggle("hidden", role !== "customer");
 
       log(`Books loaded (${(books || []).length})`);
       setStatus("catalogStatus", `✅ Loaded ${(books || []).length} books.`, "success");
@@ -184,6 +217,46 @@
   });
 
   $("loginNavBtn")?.addEventListener("click", () => showView("view-auth"));
+
+  // ---- Auth tab toggle ----
+  function switchAuthTab(tab) {
+    const isLogin = tab === "login";
+    $("loginPanel")?.classList.toggle("hidden", !isLogin);
+    $("registerPanel")?.classList.toggle("hidden", isLogin);
+    $("tabLoginBtn")?.classList.toggle("active", isLogin);
+    $("tabRegisterBtn")?.classList.toggle("active", !isLogin);
+    clearStatus("loginStatus"); clearStatus("registerStatus");
+  }
+  $("tabLoginBtn")?.addEventListener("click", () => switchAuthTab("login"));
+  $("tabRegisterBtn")?.addEventListener("click", () => switchAuthTab("register"));
+
+  // ---- Register ----
+  $("registerBtn")?.addEventListener("click", async () => {
+    clearStatus("registerStatus");
+    const u = ($("reg_username")?.value||"").trim();
+    const p  = $("reg_password")?.value||"";
+    const c  = $("reg_confirm")?.value||"";
+    if (!u) { setStatus("registerStatus","⚠️ Username is required.","warn"); return; }
+    if (p.length < 8) { setStatus("registerStatus","⚠️ Password must be at least 8 characters.","warn"); return; }
+    if (p !== c) { setStatus("registerStatus","⚠️ Passwords do not match.","warn"); return; }
+    try {
+      const out = await api("/api/auth/register",{method:"POST",body:JSON.stringify({username:u,password:p})});
+      setStatus("registerStatus",`✅ Account created! Switching to login…`,"success");
+      setTimeout(() => {
+        if ($("username")) $("username").value = u;
+        ["reg_username","reg_password","reg_confirm"].forEach(id => { if ($(id)) $(id).value = ""; });
+        switchAuthTab("login");
+        setStatus("loginStatus",`✅ Account "${u}" created — please log in.`,"success");
+      }, 1200);
+    } catch(e) {
+      setStatus("registerStatus",`❌ ${e?.data?.error||errText(e)}`,"error");
+    }
+  });
+
+  // Enter-key shortcuts
+  $("password")?.addEventListener("keydown", e => { if (e.key==="Enter") $("loginBtn")?.click(); });
+  $("reg_confirm")?.addEventListener("keydown", e => { if (e.key==="Enter") $("registerBtn")?.click(); });
+  $("searchQ")?.addEventListener("keydown", e => { if (e.key==="Enter") refreshBooks($("searchQ").value.trim()); });
 
   // ---- Login / logout ----
   $("loginBtn")?.addEventListener("click", async ()=>{
@@ -342,19 +415,26 @@
   });
 
   // ---- Orders ----
-  $("placeOrderBtn")?.addEventListener("click", async ()=>{
-    try{
+  $("placeOrderBtn")?.addEventListener("click", async () => {
+    try {
       clearStatus("placeOrderStatus");
-      const items = JSON.parse($("order_items").value);
+      const items = Object.values(cart).map(i => ({ book_id: i.book_id, quantity: i.quantity }));
+      if (!items.length) {
+        setStatus("placeOrderStatus","⚠️ Your cart is empty. Add books from the Catalog first.","warn"); return;
+      }
       const out = await api("/api/orders", { method:"POST", body: JSON.stringify({items}) });
       log("✅ Order placed", out);
-      setStatus("placeOrderStatus", "✅ Order placed successfully.", "success");
+      cart = {};
+      renderCart();
+      renderCheckoutCart();
+      setStatus("placeOrderStatus",`✅ Order #${out.order_id} placed! Total: $${Number(out.total).toFixed(2)}`,"success");
       refreshBooks();
-    } catch (e){
+    } catch(e) {
       log("❌ Place order failed", e);
-      setStatus("placeOrderStatus", `❌ Order failed: ${errText(e)}`, "error");
+      setStatus("placeOrderStatus",`❌ Order failed: ${errText(e)}`,"error");
     }
   });
+  $("backToCatalogBtn")?.addEventListener("click", () => showView("view-catalog"));
 
   // =============================================================
   //  REPORTS
@@ -459,100 +539,114 @@
     const ordData = series.map(r => r.revenue_orders);
     const totData = series.map(r => r.revenue_total);
 
-    // Destroy old chart before creating new one
-    if (revenueChart) {
-      revenueChart.destroy();
-      revenueChart = null;
-    }
-
-    const canvas = $("revenueChart");
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-
-    // Empty-state: show a helpful placeholder
-    if (!series.length){
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#a9b4cc";
-      ctx.font = "14px ui-sans-serif, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("No time-series data for the selected period.", canvas.width / 2, canvas.height / 2);
-      return;
-    }
-
-    revenueChart = new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "POS Sales",
-            data: posData,
-            backgroundColor: "rgba(110,168,254,0.7)",
-            borderColor: "#6ea8fe",
-            borderWidth: 1,
-            borderRadius: 4,
-            order: 2
-          },
-          {
-            label: "Online Orders",
-            data: ordData,
-            backgroundColor: "rgba(167,139,250,0.7)",
-            borderColor: "#a78bfa",
-            borderWidth: 1,
-            borderRadius: 4,
-            order: 2
-          },
-          {
-            label: "Total",
-            data: totData,
-            type: "line",
-            borderColor: "#34d399",
-            backgroundColor: "rgba(52,211,153,0.08)",
-            borderWidth: 2,
-            pointBackgroundColor: "#34d399",
-            pointRadius: series.length > 1 ? 4 : 0,
-            pointHoverRadius: 4,
-            tension: 0.3,
-            fill: false,
-            order: 1
+    const sharedOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#121826",
+          borderColor: "#23304a",
+          borderWidth: 1,
+          titleColor: "#e7eefc",
+          bodyColor: "#a9b4cc",
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: $${Number(ctx.parsed.y).toFixed(2)}`
           }
-        ]
+        }
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#121826",
-            borderColor: "#23304a",
-            borderWidth: 1,
-            titleColor: "#e7eefc",
-            bodyColor: "#a9b4cc",
-            callbacks: {
-              label: (ctx) => ` ${ctx.dataset.label}: $${Number(ctx.parsed.y).toFixed(2)}`
-            }
-          }
+      scales: {
+        x: {
+          grid: { color: "rgba(35,48,74,0.6)" },
+          ticks: { color: "#a9b4cc", font: { size: 11 } }
         },
-        scales: {
-          x: {
-            stacked: false,
-            grid: { color: "rgba(35,48,74,0.6)" },
-            ticks: { color: "#a9b4cc", font: { size: 11 } }
-          },
-          y: {
-            grid: { color: "rgba(35,48,74,0.6)" },
-            ticks: {
-              color: "#a9b4cc",
-              font: { size: 11 },
-              callback: (v) => `$${v}`
-            }
+        y: {
+          grid: { color: "rgba(35,48,74,0.6)" },
+          ticks: {
+            color: "#a9b4cc",
+            font: { size: 11 },
+            callback: (v) => `$${v}`
           }
         }
       }
-    });
+    };
+
+    // ---- Bar chart: POS Sales vs Online Orders ----
+    if (revenueChart) { revenueChart.destroy(); revenueChart = null; }
+    const barCanvas = $("revenueChart");
+    if (barCanvas) {
+      const ctx = barCanvas.getContext("2d");
+      if (!series.length) {
+        ctx.clearRect(0, 0, barCanvas.width, barCanvas.height);
+        ctx.fillStyle = "#a9b4cc";
+        ctx.font = "14px ui-sans-serif, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("No data for the selected period.", barCanvas.width / 2, barCanvas.height / 2);
+      } else {
+        revenueChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "POS Sales",
+                data: posData,
+                backgroundColor: "rgba(110,168,254,0.7)",
+                borderColor: "#6ea8fe",
+                borderWidth: 1,
+                borderRadius: 4
+              },
+              {
+                label: "Online Orders",
+                data: ordData,
+                backgroundColor: "rgba(167,139,250,0.7)",
+                borderColor: "#a78bfa",
+                borderWidth: 1,
+                borderRadius: 4
+              }
+            ]
+          },
+          options: sharedOptions
+        });
+      }
+    }
+
+    // ---- Line chart: Total Revenue trend ----
+    if (revenueTrendChart) { revenueTrendChart.destroy(); revenueTrendChart = null; }
+    const lineCanvas = $("revenueTrendChart");
+    if (lineCanvas) {
+      const ctx = lineCanvas.getContext("2d");
+      if (!series.length) {
+        ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
+        ctx.fillStyle = "#a9b4cc";
+        ctx.font = "14px ui-sans-serif, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("No data for the selected period.", lineCanvas.width / 2, lineCanvas.height / 2);
+      } else {
+        revenueTrendChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Total Revenue",
+                data: totData,
+                borderColor: "#34d399",
+                backgroundColor: "rgba(52,211,153,0.08)",
+                borderWidth: 2,
+                pointBackgroundColor: "#34d399",
+                pointRadius: series.length > 1 ? 4 : 6,
+                pointHoverRadius: 6,
+                tension: 0.3,
+                fill: true
+              }
+            ]
+          },
+          options: sharedOptions
+        });
+      }
+    }
   }
 
   function renderTopBooks(books){
@@ -870,6 +964,147 @@
       log("❌ Receive purchase order failed", e);
       setStatus("publisherActionStatus", `❌ Receive failed: ${errText(e)}`, "error");
     }
+  });
+
+  // =============================================================
+  //  CART SYSTEM
+  // =============================================================
+  function addToCart(id, title, price, stock) {
+    if (cart[id]) { if (cart[id].quantity < stock) cart[id].quantity++; }
+    else cart[id] = { book_id:id, title, price, quantity:1, stock };
+    renderCart(); renderCheckoutCart();
+  }
+  function removeFromCart(id) { delete cart[id]; renderCart(); renderCheckoutCart(); }
+  function updateCartQty(id, qty) {
+    const n = parseInt(qty,10);
+    if (!cart[id]) return;
+    if (isNaN(n)||n<=0) { removeFromCart(id); return; }
+    cart[id].quantity = Math.min(n, cart[id].stock);
+    renderCart(); renderCheckoutCart();
+  }
+  function cartTotal() { return Object.values(cart).reduce((s,i)=>s+i.price*i.quantity,0); }
+
+  function renderCart() {
+    const body=$("#cartBody"||$("cartBody")), footer=$("cartFooter"), label=$("cartTotalLabel");
+    const bodyEl = $("cartBody");
+    if (!bodyEl) return;
+    const items = Object.values(cart);
+    if (!items.length) {
+      bodyEl.innerHTML = `<div class="dashEmpty">Your cart is empty — click <strong>+ Add</strong> on any book above.</div>`;
+      if (footer) footer.classList.add("hidden"); return;
+    }
+    bodyEl.innerHTML = items.map(item=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="flex:1;font-size:13px;">${escHtml(item.title)}</span>
+        <span style="font-size:12px;color:var(--muted);width:64px;text-align:right;">$${item.price.toFixed(2)} ea</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <button class="smallBtn secondary cartDecBtn" data-id="${item.book_id}" style="padding:2px 8px;">−</button>
+          <input class="cartQtyInput" data-id="${item.book_id}" type="number" value="${item.quantity}"
+                 min="1" max="${item.stock}" style="width:44px;text-align:center;padding:4px;font-size:12px;" />
+          <button class="smallBtn secondary cartIncBtn" data-id="${item.book_id}" style="padding:2px 8px;"
+                  ${item.quantity>=item.stock?"disabled":""}>+</button>
+        </div>
+        <span style="font-size:13px;font-weight:700;width:64px;text-align:right;">$${(item.price*item.quantity).toFixed(2)}</span>
+        <button class="smallBtn secondary cartRemoveBtn" data-id="${item.book_id}"
+                style="padding:2px 8px;color:var(--danger);">✕</button>
+      </div>`).join("");
+    bodyEl.querySelectorAll(".cartDecBtn").forEach(b=>b.addEventListener("click",()=>updateCartQty(b.dataset.id,(cart[b.dataset.id]?.quantity||1)-1)));
+    bodyEl.querySelectorAll(".cartIncBtn").forEach(b=>b.addEventListener("click",()=>updateCartQty(b.dataset.id,(cart[b.dataset.id]?.quantity||0)+1)));
+    bodyEl.querySelectorAll(".cartQtyInput").forEach(inp=>inp.addEventListener("change",()=>updateCartQty(inp.dataset.id,inp.value)));
+    bodyEl.querySelectorAll(".cartRemoveBtn").forEach(b=>b.addEventListener("click",()=>removeFromCart(b.dataset.id)));
+    if (footer) { footer.classList.remove("hidden"); footer.style.display="flex"; }
+    if (label)  label.textContent = `Total: $${cartTotal().toFixed(2)}`;
+  }
+
+  function renderCheckoutCart() {
+    const review=$("checkoutCartReview"), footer=$("checkoutFooter"), total=$("checkoutTotal");
+    if (!review) return;
+    const items = Object.values(cart);
+    if (!items.length) {
+      review.innerHTML=`<div class="dashEmpty">Your cart is empty — go to <strong>Catalog</strong> to add books.</div>`;
+      if (footer) footer.classList.add("hidden"); return;
+    }
+    review.innerHTML=`
+      <table class="dashTable">
+        <thead><tr><th>Book</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Line Total</th></tr></thead>
+        <tbody>${items.map(it=>`<tr>
+          <td>${escHtml(it.title)}</td>
+          <td style="text-align:center;">${it.quantity}</td>
+          <td style="text-align:right;">$${it.price.toFixed(2)}</td>
+          <td style="text-align:right;font-weight:700;">$${(it.price*it.quantity).toFixed(2)}</td>
+        </tr>`).join("")}</tbody>
+      </table>`;
+    if (footer) { footer.classList.remove("hidden"); footer.style.display="flex"; }
+    if (total)  total.textContent = `Total: $${cartTotal().toFixed(2)}`;
+  }
+
+  $("clearCartBtn")?.addEventListener("click",()=>{ cart={}; renderCart(); renderCheckoutCart(); });
+  $("goCheckoutBtn")?.addEventListener("click",()=>{ renderCheckoutCart(); showView("view-sales"); });
+
+  // =============================================================
+  //  MY ORDERS
+  // =============================================================
+  let _lastOrders = [];
+  async function refreshOrderHistory() {
+    setStatus("ordersStatus","Loading…","warn");
+    try {
+      const orders = await api("/api/orders/mine",{method:"GET"});
+      _lastOrders = orders||[];
+      renderOrderHistory(_lastOrders);
+      clearStatus("ordersStatus");
+    } catch(e) {
+      setStatus("ordersStatus",`❌ Failed to load orders: ${errText(e)}`,"error");
+    }
+  }
+  function renderOrderHistory(orders) {
+    const filterVal = $("ordersStatusFilter")?.value||"all";
+    const filtered  = filterVal==="all" ? orders : orders.filter(o=>o.status===filterVal);
+    const totalSpent = orders.reduce((s,o)=>s+(o.total||0),0);
+    const totalItems = orders.reduce((s,o)=>s+(o.items||[]).reduce((si,i)=>si+(i.quantity||0),0),0);
+    const avgVal = orders.length ? totalSpent/orders.length : 0;
+    const kpiGrid=$("ordersKpiGrid");
+    if (kpiGrid) kpiGrid.style.display = orders.length?"":"none";
+    const fmt=v=>`$${Number(v).toFixed(2)}`;
+    [["kpi-order-count",orders.length],["kpi-order-spent",fmt(totalSpent)],
+     ["kpi-order-items",totalItems],["kpi-order-avg",fmt(avgVal)]].forEach(([id,val])=>{
+      const el=$(id); if(el) el.textContent=val;
+    });
+    const wrap=$("ordersListWrap"); if(!wrap) return;
+    if (!filtered.length) {
+      wrap.innerHTML=`<div class="dashEmpty" style="padding:40px;text-align:center;">
+        ${orders.length?"No orders match the selected status.":"You haven't placed any orders yet."}</div>`;
+      return;
+    }
+    const sc={Processing:"#fbbf24",Completed:"#34d399",Shipped:"#6ea8fe",Cancelled:"#fb7185"};
+    wrap.innerHTML = filtered.map(order=>{
+      const date=new Date(order.timestamp).toLocaleString();
+      const color=sc[order.status]||"#a9b4cc";
+      const rows=(order.items||[]).map(it=>`<tr>
+        <td>${escHtml(it.title||"Unknown")}</td>
+        <td style="text-align:center;">${it.quantity}</td>
+        <td style="text-align:right;">$${Number(it.price_each).toFixed(2)}</td>
+        <td style="text-align:right;font-weight:700;">$${(it.price_each*it.quantity).toFixed(2)}</td>
+      </tr>`).join("");
+      return `<div class="dashTableCard" style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+          <span style="font-weight:700;font-size:14px;">Order #${order.id}</span>
+          <span class="muted small">${date}</span>
+          <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;
+                       background:${color}22;color:${color};border:1px solid ${color}44;">${order.status}</span>
+        </div>
+        <table class="dashTable"><thead><tr><th>Book</th><th style="text-align:center;">Qty</th>
+          <th style="text-align:right;">Unit Price</th><th style="text-align:right;">Line Total</th></tr></thead>
+          <tbody>${rows}</tbody></table>
+        <div style="text-align:right;padding-top:8px;font-size:13px;font-weight:700;">
+          Order Total: $${Number(order.total).toFixed(2)}</div>
+      </div>`;
+    }).join("");
+  }
+  $("refreshOrdersBtn")?.addEventListener("click", refreshOrderHistory);
+  $("ordersStatusFilter")?.addEventListener("change",()=>renderOrderHistory(_lastOrders));
+  document.querySelectorAll(".navBtn").forEach(btn=>{
+    if (btn.getAttribute("data-view")==="view-orders")
+      btn.addEventListener("click", refreshOrderHistory);
   });
 
   // boot

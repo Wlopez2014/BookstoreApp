@@ -36,6 +36,7 @@
         <button class="navBtn" data-view="view-catalog" data-roles="admin,staff,customer">Catalog</button>
         <button class="navBtn" data-view="view-inventory" data-roles="admin,staff">Inventory</button>
         <button class="navBtn" data-view="view-sales" data-roles="admin,staff,customer">Sales / Checkout</button>
+        <button class="navBtn" data-view="view-orders" data-roles="customer">My Orders</button>
         <button class="navBtn" data-view="view-reports" data-roles="admin,staff">Reports</button>
         <button class="navBtn" data-view="view-publisher" data-roles="admin,staff">Publisher</button>
 
@@ -55,38 +56,50 @@
       <!-- AUTH VIEW -->
       <section id="view-auth" class="view">
         <div class="card narrow">
-          <h2>Login</h2>
 
-          <div class="row">
-            <label>Username</label>
-            <input id="username" placeholder="admin / staff / customer" />
+          <div class="authTabs">
+            <button id="tabLoginBtn" class="authTab active">Login</button>
+            <button id="tabRegisterBtn" class="authTab">Create Account</button>
           </div>
 
-          <div class="row">
-            <label>Password</label>
-            <input id="password" type="password" placeholder="Admin123! / Staff123! / Customer123!" />
-          </div>
-
-          <div class="row actions">
-            <button id="loginBtn">Login</button>
-            <div></div>
-            <div></div>
-          </div>
-
-          <div id="loginStatus" class="inlineStatus"></div>
-
-          <div class="pill demoPill">
-            <h4 class="demoTitle">Demo Users | Passwords</h4>
-            <div class="demo-grid">
-              <div><strong>admin</strong></div><div>Admin123!</div>
-              <div><strong>staff</strong></div><div>Staff123!</div>
-              <div><strong>customer</strong></div><div>Customer123!</div>
+          <!-- LOGIN PANEL -->
+          <div id="loginPanel">
+            <div class="row">
+              <label>Username</label>
+              <input id="username" placeholder="admin / staff / customer" />
+            </div>
+            <div class="row">
+              <label>Password</label>
+              <input id="password" type="password" placeholder="Your password" />
+            </div>
+            <div class="row actions">
+              <button id="loginBtn">Login</button>
+              <div></div><div></div>
+            </div>
+            <div id="loginStatus" class="inlineStatus"></div>
+            <div class="pill demoPill" style="margin-top:12px;">
+              <h4 class="demoTitle">Demo Users | Passwords</h4>
+              <div class="demo-grid">
+                <div><strong>admin</strong></div><div>Admin123!</div>
+                <div><strong>staff</strong></div><div>Staff123!</div>
+                <div><strong>customer</strong></div><div>Customer123!</div>
+              </div>
             </div>
           </div>
 
-          <p class="muted small authNote">
-            After you log in, use the sidebar to navigate.
-          </p>
+          <!-- REGISTER PANEL -->
+          <div id="registerPanel" class="hidden">
+            <p class="muted small" style="margin-bottom:14px;">Create a new customer account to browse and order books.</p>
+            <div class="row"><label>Username</label><input id="reg_username" placeholder="Choose a username" /></div>
+            <div class="row"><label>Password</label><input id="reg_password" type="password" placeholder="Min. 8 characters" /></div>
+            <div class="row"><label>Confirm</label><input id="reg_confirm" type="password" placeholder="Repeat your password" /></div>
+            <div class="row actions">
+              <button id="registerBtn">Create Account</button>
+              <div></div><div></div>
+            </div>
+            <div id="registerStatus" class="inlineStatus"></div>
+          </div>
+
         </div>
       </section>
 
@@ -100,7 +113,7 @@
         <div class="card">
           <div class="row actions">
             <button id="refreshBooksBtn">Refresh Books</button>
-            <input id="searchQ" placeholder="Search title/author/isbn…" />
+            <input id="searchQ" placeholder="Search title / author / ISBN…" />
             <button id="searchBtn" class="secondary">Search</button>
           </div>
 
@@ -111,13 +124,30 @@
               <thead>
                 <tr>
                   <th>ID</th><th>ISBN</th><th>Title</th><th>Author</th><th>Price</th><th>Qty</th>
+                  <th id="cartColHeader" class="hidden"></th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
           </div>
-
           <p class="muted small">Tip: Use book IDs from the table for updates, sales, and orders.</p>
+        </div>
+
+        <!-- Cart panel — customers only -->
+        <div id="cartPanel" class="card hidden" style="margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <h3 class="cardTitle" style="margin:0;">🛒 Your Cart</h3>
+            <button id="clearCartBtn" class="secondary smallBtn">Clear Cart</button>
+          </div>
+          <div id="cartBody">
+            <div class="dashEmpty">Your cart is empty — click <strong>+ Add</strong> on any book above.</div>
+          </div>
+          <div id="cartFooter" class="hidden"
+               style="display:flex;justify-content:space-between;align-items:center;
+                      padding-top:10px;border-top:1px solid var(--border);margin-top:8px;">
+            <span id="cartTotalLabel" style="font-size:14px;font-weight:700;">Total: $0.00</span>
+            <button id="goCheckoutBtn">Proceed to Checkout →</button>
+          </div>
         </div>
       </section>
 
@@ -220,27 +250,75 @@
 
           <!-- Customer Checkout -->
           <section class="card roleBlock" data-role="customer">
-            <h3 class="cardTitle">Checkout (Create Order)</h3>
-            <p class="muted small">
-              Enter items as JSON: <span class="mono">[{ "book_id": 1, "quantity": 2 }]</span>
-            </p>
-
-            <div class="row demoRow">
-              <div>
-                <label>Items JSON</label>
-                <textarea id="order_items" rows="6">[{ "book_id": 1, "quantity": 1 }]</textarea>
+            <h3 class="cardTitle">Checkout</h3>
+            <div id="checkoutCartReview">
+              <div class="dashEmpty">Your cart is empty — go to <strong>Catalog</strong> to add books.</div>
+            </div>
+            <div id="checkoutFooter" class="hidden"
+                 style="display:flex;justify-content:space-between;align-items:center;
+                        padding-top:10px;border-top:1px solid var(--border);margin-top:8px;">
+              <span id="checkoutTotal" style="font-size:14px;font-weight:700;">Total: $0.00</span>
+              <div style="display:flex;gap:8px;">
+                <button id="backToCatalogBtn" class="secondary">← Back to Catalog</button>
+                <button id="placeOrderBtn">Place Order</button>
               </div>
             </div>
-
-            <div class="row actions">
-              <button id="placeOrderBtn">Place Order</button>
-              <div></div><div></div>
-            </div>
-
             <div id="placeOrderStatus" class="inlineStatus"></div>
-
-            <p class="muted small">Note: Sprint 1 demo uses a simplified checkout (inventory updates + order status).</p>
           </section>
+        </div>
+      </section>
+
+      <!-- MY ORDERS VIEW (CUSTOMER) -->
+      <section id="view-orders" class="view hidden roleBlock" data-role="customer">
+        <div class="viewHeader">
+          <h2>My Orders</h2>
+          <div class="muted small">Your past and current orders.</div>
+        </div>
+
+        <div class="card" style="margin-bottom:14px;">
+          <div class="row actions">
+            <button id="refreshOrdersBtn">↻ Refresh Orders</button>
+            <select id="ordersStatusFilter" class="secondary">
+              <option value="all">All statuses</option>
+              <option value="Processing">Processing</option>
+              <option value="Completed">Completed</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <div></div>
+          </div>
+          <div id="ordersStatus" class="inlineStatus"></div>
+        </div>
+
+        <!-- Summary KPIs -->
+        <div class="kpiGrid" id="ordersKpiGrid" style="display:none; margin-bottom:14px;">
+          <div class="kpiCard accent-blue">
+            <div class="kpiLabel">Total Orders</div>
+            <div class="kpiValue" id="kpi-order-count">—</div>
+            <div class="kpiSub">All time</div>
+          </div>
+          <div class="kpiCard accent-green">
+            <div class="kpiLabel">Total Spent</div>
+            <div class="kpiValue" id="kpi-order-spent">—</div>
+            <div class="kpiSub">Across all orders</div>
+          </div>
+          <div class="kpiCard accent-purple">
+            <div class="kpiLabel">Total Items</div>
+            <div class="kpiValue" id="kpi-order-items">—</div>
+            <div class="kpiSub">Books purchased</div>
+          </div>
+          <div class="kpiCard accent-amber">
+            <div class="kpiLabel">Avg Order Value</div>
+            <div class="kpiValue" id="kpi-order-avg">—</div>
+            <div class="kpiSub">Per order</div>
+          </div>
+        </div>
+
+        <!-- Orders list -->
+        <div id="ordersListWrap">
+          <div class="dashEmpty" style="padding:40px;text-align:center;color:var(--muted);">
+            Click <strong>Refresh Orders</strong> to load your order history.
+          </div>
         </div>
       </section>
 
